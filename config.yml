@@ -1,0 +1,25 @@
+postgres:
+  host: 127.0.0.1
+  port: 5432
+  user: postgres
+  database: my_pg_db
+  idleTimeoutMillis: 1000
+bigquery:
+  host: https://www.googleapis.com/bigquery/v2
+  port: 443
+  OAuthPvtKeyPath: /Users/path/to_key/jsonwebtoken-7c2c04303bb3.json
+  OAuthServiceAcctEmail: email_from@token.iam.gserviceaccount.com
+  OAuthType: 0
+  Timeout: 60
+google:
+  project_id: my_project
+db:
+  schema: graph_import
+  node_prefix: node_
+  rel_prefix: relationship_
+  page: 1000000
+import:
+  batch_size: 5000
+  parallel: true
+neo4j:
+  path: /Users/dudeman/neo4j-enterprise-3.0.3
