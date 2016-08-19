@@ -1,12 +1,17 @@
 # Gonz #
 
-*A NodeJS utility to translate Postgres views and BigQuery tables into Neo4j nodes and relationships.*
+*A command line utility to translate Postgres views and BigQuery tables into Neo4j nodes and relationships.*
 
 ### Setup: ###
 
 *Gonz depends on the [apoc extension for neo4j](https://github.com/neo4j-contrib/neo4j-apoc-procedures), place the jar in your neo4j plugins folder, along with the [jdbc connector for postgres](https://jdbc.postgresql.org/download.html) and the [jdbc connector for BigQuery](https://cloud.google.com/bigquery/partners/simba-beta-drivers). If you plan to use BigQuery you will also need a service account JSON Web Token from google which has access to BQ.*
 
 ### Usage: ###
+
+*Install the dependancies with -g option:*
+```bash
+npm install -g
+```
 
 *Modify config.yml to conform to your local development environment:*
 
