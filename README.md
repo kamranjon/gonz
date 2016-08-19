@@ -5,7 +5,7 @@
 
 ### Setup: ###
 
-*Gonz depends on the [apoc extension for neo4j](https://github.com/neo4j-contrib/neo4j-apoc-procedures), place the jar in your neo4j plugins folder, along with the [jdbc connector for postgres](https://jdbc.postgresql.org/download.html) and the [jdbc connector for BigQuery](https://cloud.google.com/bigquery/partners/simba-beta-drivers). If you plan to use BigQuery you will also need a service account JSON Web Token from google which has access to BQ.*
+*Gonz depends on the [apoc extension for neo4j](https://github.com/neo4j-contrib/neo4j-apoc-procedures), place the jar in your neo4j plugins folder, along with the [jdbc connector for postgres](https://jdbc.postgresql.org/download.html) and the [jdbc connector for BigQuery](https://cloud.google.com/bigquery/partners/simba-beta-drivers). If you plan to use BigQuery you will also need a service account JSON Web Token or a OAuthCLientSecret from google which has access to BQ.*
 
 ### Usage: ###
 
@@ -21,6 +21,7 @@ postgres:
   host: 127.0.0.1
   port: 5432
   user: postgres
+  password: 
   database: my_pg_db
   idleTimeoutMillis: 1000
 bigquery:
@@ -30,8 +31,7 @@ bigquery:
   OAuthServiceAcctEmail: email_from@token.iam.gserviceaccount.com
   OAuthType: 0
   Timeout: 60
-google:
-  project_id: my_project
+  ProjectId: yourproject
 db:
   schema: graph_import
   node_prefix: node_
