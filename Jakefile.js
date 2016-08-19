@@ -34,11 +34,15 @@ var conn_string = `postgres://${config.postgres.user}@${config.postgres.host}:${
 var pg_jdbc_string = `jdbc:postgresql://${config.postgres.host}:${config.postgres.port}/${config.postgres.database}?user=${config.postgres.user}`;
 var bq_jdbc_string = `jdbc:bigquery://${config.bigquery.host}:${config.bigquery.port};ProjectId=${config.google.project_id};OAuthType=${config.bigquery.OAuthType};OAuthServiceAcctEmail=${config.bigquery.OAuthServiceAcctEmail};OAuthPvtKeyPath=${config.bigquery.OAuthPvtKeyPath};Timeout=${config.bigquery.Timeout};`;
 
+task('default', function(){
+  console.log('thanks for checking out gonz, please provide an argument!');
+})
+
 var task_queries = new Map([
-  ['all', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind = 'm' AND n.nspname = '${config.db.schema}' and (c.relname LIKE '${config.db.node_prefix}%' OR c.relname LIKE '${config.db.rel_prefix}%') GROUP BY c.relname ORDER BY c.relname;`],  
-  ['index', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind = 'm' AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' GROUP BY c.relname ORDER BY c.relname;`],
-  ['nodes', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind = 'm' AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' GROUP BY c.relname ORDER BY c.relname;`],
-  ['rels', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind = 'm' AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.rel_prefix}%' GROUP BY c.relname ORDER BY c.relname;`]
+  ['all', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and (c.relname LIKE '${config.db.node_prefix}%' OR c.relname LIKE '${config.db.rel_prefix}%') GROUP BY c.relname ORDER BY c.relname;`],  
+  ['index', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' GROUP BY c.relname ORDER BY c.relname;`],
+  ['nodes', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' GROUP BY c.relname ORDER BY c.relname;`],
+  ['rels', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.rel_prefix}%' GROUP BY c.relname ORDER BY c.relname;`]
 ]);
 
 task_queries.forEach(function(query, task_name){
@@ -117,7 +121,7 @@ namespace('pg', function(){
     let run = process.env.import;
     pg.connectAsync(config.postgres).then(function(client){
       // grab all of the node and relationship views
-      let query = `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind = 'm' AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' AND c.relname = '${config.db.node_prefix + _.snakeCase(node_name)}' GROUP BY c.relname ORDER BY c.relname;`;
+      let query = `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' AND c.relname = '${config.db.node_prefix + _.snakeCase(node_name)}' GROUP BY c.relname ORDER BY c.relname;`;
       client.queryAsync(query).then(function(result){
         append_results_to_file(result, node_file, run);
       }).finally(function(){
@@ -132,7 +136,7 @@ namespace('pg', function(){
       // grab all of the node and relationship views
       let run = process.env.import;
       let update = process.env.update;
-      let query = `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind = 'm' AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.rel_prefix}%' AND c.relname = '${config.db.rel_prefix + _.snakeCase(rel_name)}' GROUP BY c.relname ORDER BY c.relname;`;
+      let query = `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.rel_prefix}%' AND c.relname = '${config.db.rel_prefix + _.snakeCase(rel_name)}' GROUP BY c.relname ORDER BY c.relname;`;
       client.queryAsync(query).then(function(result){
         append_results_to_file(result, rel_file, run);
       }).finally(function(){
