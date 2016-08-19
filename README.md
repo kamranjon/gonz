@@ -85,7 +85,7 @@ gonz bq:index import=true
 
 ### Conventions: ###
 
-* All pg views must be materialized views. 
+* All pg data must be in regular views or materialized views. 
 * All bq tables gotta be tables and not views (for now - JDBC limitation)
 * All nodes must use prefix defined in config.yml *(default: node_)*
 * All rels must use prefix defined in config.yml *(default: relationship_)*
