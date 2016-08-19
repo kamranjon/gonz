@@ -1,4 +1,4 @@
-var Promise = require("bluebird"), 
+var Promise = require("bluebird"); 
 var yaml = require('js-yaml');
 var _ = require('lodash');
 var fs = Promise.promisifyAll(require('fs'));
