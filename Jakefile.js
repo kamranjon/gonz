@@ -53,7 +53,7 @@ var bqJdbcFromHash = function(params={}){
     return result;
   }, []);
   var joined_conn_params = _.join(provided_params, ';');
-  var jdbc_string = `jdbc:postgresql://${params.host}:${params.port};${joined_conn_params}`;
+  var jdbc_string = `jdbc:bigquery://${params.host}:${params.port};${joined_conn_params}`;
   return jdbc_string;
 }
 
