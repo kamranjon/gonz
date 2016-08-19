@@ -10,8 +10,7 @@
 
 *Modify config.yml to conform to your local development environment:*
 
-```
-#!yml
+```yml
 postgres:
   host: 127.0.0.1
   port: 5432
@@ -42,8 +41,7 @@ neo4j:
 
 *Create views in Postgres or tables in BQ which conform to the settings in your config.yml:*
 
-```
-#!sql
+```sql
 CREATE MATERIALIZED VIEW graph_import.node_taxonomy AS 
 SELECT global_id as id, code, type, classification, specialization, definition, notes, taxonomy_type 
 FROM taxonomies;
@@ -51,41 +49,31 @@ FROM taxonomies;
 
 *Create cypher statements for and import all data from the views defined in the schema you defined:*
 
-```
-#!bash
-
+```bash
 gonz pg:all import=true
 ```
 
 *Create cypher statements for all rels in the BQ schema without importing:*
 
-```
-#!bash
-
+```bash
 gonz bq:rels
 ```
 
 *Create statements for and import a specific Node:*
 
-```
-#!bash
-
+```bash
 gonz pg:node[Provider] import=true
 ```
 
 *Create statements for and import a specific Relationship:*
 
-```
-#!bash
-
+```bash
 gonz pg:rel[HAS_OWNERSHIP_IN] import=true
 ```
 
 *Create all indexes for the UID on all nodes in your BQ schema*
 
-```
-#!bash
-
+```bash
 gonz bq:index import=true
 ```
 
