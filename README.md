@@ -48,9 +48,21 @@ neo4j:
 *Create views in Postgres or tables in BQ which conform to the settings in your config.yml:*
 
 ```sql
+--- Node View
 CREATE MATERIALIZED VIEW graph_import.node_taxonomy AS 
-SELECT global_id as id, code, type, classification, specialization, definition, notes, taxonomy_type 
+SELECT 
+  global_id as id, 
+  classification, 
+  specialization
 FROM taxonomies;
+
+--- Relationship View
+CREATE MATERIALIZED VIEW graph_import.relationship_attended_school as 
+SELECT
+    pid as provider_id, 
+    schid as school_id, 
+    med_school_graduation_year as graduation_year 
+FROM education; 
 ```
 
 *Create cypher statements for and import all data from the views defined in the schema you defined:*
@@ -85,13 +97,13 @@ gonz bq:index import=true
 
 ### Conventions: ###
 
-* All pg views must be materialized views. 
+* All pg data must be in regular views or materialized views. 
 * All bq tables gotta be tables and not views (for now - JDBC limitation)
 * All nodes must use prefix defined in config.yml *(default: node_)*
 * All rels must use prefix defined in config.yml *(default: relationship_)*
 * The first column of a node view/table is always UID, all subsequent columns are properties on the node. 
 * Relationship views/tables define the first column as the UID of the from node and the second column as the UID of the to node, all subsequent columns are properties on the relationship.
-* The from and to columns should follow the format from_node_type_id, to_node_type_id, eg *(provider_id, county_id)*
+* The from and to columns should follow the format from_node_type_id, to_node_type_id, eg *(provider_id, county_id) -- if it is from the same type to the same type, provide a distinction after _id - (provider_id_from, provider_id_to)*
 * All Date properties should be converted to unix timestamp with: *EXTRACT(EPOCH FROM date_field)*
 * All JSON properties should be either ignored or converted to Strings.
 * Singular Naming for Nodes and Relationships.
