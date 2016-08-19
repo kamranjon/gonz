@@ -62,7 +62,7 @@ SELECT
     pid as provider_id, 
     schid as school_id, 
     med_school_graduation_year as graduation_year 
-from education; 
+FROM education; 
 ```
 
 *Create cypher statements for and import all data from the views defined in the schema you defined:*
