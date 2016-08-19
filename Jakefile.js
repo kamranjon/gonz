@@ -1,38 +1,61 @@
 var Promise = require("bluebird"), 
-    yaml = require('js-yaml');
-
+var yaml = require('js-yaml');
 var _ = require('lodash');
 var fs = Promise.promisifyAll(require('fs'));
 var pg = Promise.promisifyAll(require('pg'));
 
 
 var config = {};
-var node_or_rel = /(^node_)|(^rel_)/;
-var node_regex = /(^node_)/;
-var rel_regex = /(^rel_)/
 try {
   config = yaml.safeLoad(fs.readFileSync('config.yml', 'utf8'));
-  node_or_rel = new RegExp(`(^${config.db.node_prefix})|(^${config.db.rel_prefix})`);
-  node_regex = new RegExp(`(^${config.db.node_prefix})`);
-  rel_regex = new RegExp(`(^${config.db.rel_prefix})`);
+
 } catch (e) {
   console.log(e);
+  process.exit();
 }
+
+var node_or_rel = new RegExp(`(^${config.db.node_prefix})|(^${config.db.rel_prefix})`);
+var node_regex = new RegExp(`(^${config.db.node_prefix})`);
+var rel_regex = new RegExp(`(^${config.db.rel_prefix})`);
 
 var gcloud = require('google-cloud');
 var bigquery = gcloud.bigquery({
-  projectId: config.google.project_id,
-  // Specify a path to a keyfile.
+  projectId: config.bigquery.ProjectId,
   keyFilename: config.bigquery.OAuthPvtKeyPath
 });
-
 
 var lines = [];
 var page = config.db.page;
 var current_timestamp = Date.now();
-var conn_string = `postgres://${config.postgres.user}@${config.postgres.host}:${config.postgres.port}/${config.postgres.database}`;
-var pg_jdbc_string = `jdbc:postgresql://${config.postgres.host}:${config.postgres.port}/${config.postgres.database}?user=${config.postgres.user}`;
-var bq_jdbc_string = `jdbc:bigquery://${config.bigquery.host}:${config.bigquery.port};ProjectId=${config.google.project_id};OAuthType=${config.bigquery.OAuthType};OAuthServiceAcctEmail=${config.bigquery.OAuthServiceAcctEmail};OAuthPvtKeyPath=${config.bigquery.OAuthPvtKeyPath};Timeout=${config.bigquery.Timeout};`;
+
+var pgJdbcFromHash = function(params = {}){
+  var conn_params = ['user', 'password', 'ssl', 'sslfactory', 'sslfactoryarg', 'socketFactory', 'socketFactoryArg', 'compatible', 'sendBufferSize', 'recvBufferSize', 'protocolVersion', 'logLevel', 'charSet', 'allowEncodingChanges', 'logUnclosedConnections', 'binaryTransferEnable', 'binryTransferDisable', 'prepareThreshold', 'preparedStatementCacheQueries', 'preparedStatementCacheSizeMiB', 'defaultRowFetchSize', 'reWriteBatchedInserts', 'loginTimeout', 'connectTimeout', 'cancelSignalTimeout', 'socketTimeout', 'tcpKeepAlive', 'unknownLength', 'stringtype', 'kerberosServerName', 'jaasApplicationName', 'ApplicationName', 'gsslib', 'sspiServiceClass', 'useSpnego', 'sendBufferSize', 'receiveBufferSize', 'readOnly', 'disableColumnSanitiser', 'assumeMinServerVersion', 'currentSchema', 'targetServerType', 'hostRecheckSeconds', 'loadBalanceHosts']
+  
+  var provided_params = _.reduce(params, function(result, value, key){
+    result = result || [];
+    if(_.includes(conn_params, key)){
+      result.push(`${key}=${value}`);
+    }
+    return result;
+  }, []);
+  var joined_conn_params = _.join(provided_params, '&');
+  var jdbc_string = `jdbc:postgresql://${params.host}:${params.port}/${params.database}?${joined_conn_params}`;
+  return jdbc_string;
+}
+
+var bqJdbcFromHash = function(params={}){
+  var conn_params = ['AllowLargeResults', 'Catalog', 'LargeResultDataset', 'LargeResultTable', 'LogLevel', 'LogPath', 'MaxReqPerSec', 'MaxResults', 'OAuthClientId', 'OAuthClientSecret', 'OAuthPvtKeyPath', 'OAuthServiceAcctEmail', 'OAuthType', 'ProjectId', 'SQLDialect', 'Timeout']
+  var provided_params = _.reduce(params, function(result, value, key){
+    result = result || [];
+    if(_.includes(conn_params, key)){
+      result.push(`${key}=${value}`);
+    }
+    return result;
+  }, []);
+  var joined_conn_params = _.join(provided_params, ';');
+  var jdbc_string = `jdbc:postgresql://${params.host}:${params.port};${joined_conn_params}`;
+  return jdbc_string;
+}
 
 task('default', function(){
   console.log('thanks for checking out gonz, please provide an argument!');
@@ -218,7 +241,7 @@ var get_view_partitioned = function(view, create_method) {
 
 var get_count = function(view, callback){
   if(view.type === 'bq'){
-    query = `SELECT count(1) as count FROM [${config.google.project_id}.${config.db.schema}.${view.name}]`;
+    query = `SELECT count(1) as count FROM [${config.bigquery.ProjectId}.${config.db.schema}.${view.name}]`;
     return view.table.queryAsync(query).then( function(results){
       callback(results[0].count);
     });
@@ -239,7 +262,7 @@ var relationship_query = function(view, limit, offset, update = false){
   var from = upperCamelCase(view.attributes[0].replace(/_id.*/, ''));
   var to = upperCamelCase(view.attributes[1].replace(/_id.*/, ''));
   var operation = update ? 'MERGE' : 'CREATE';
-  var jdbc_string = view.type === 'bq' ? bq_jdbc_string : pg_jdbc_string; 
+  var jdbc_string = view.type === 'bq' ? bqJdbcFromHash(config.bigquery) : pgJdbcFromHash(config.postgres); 
   var qualified_table = view.type === 'bq' ? `\`${config.db.schema}.${view.name}\`` : `${config.db.schema}.${view.name}`;
   var cypher = `WITH "SELECT * FROM ${qualified_table} LIMIT ${limit} OFFSET ${offset}" as sql, "${jdbc_string}" as url CALL apoc.periodic.iterate("CALL apoc.load.jdbc({url},{sql}) YIELD row RETURN row", "MATCH (n:${from} {id: {row}.${view.attributes[0]}}), (m:${to} {id: {row}.${view.attributes[1]}}) ${operation} (n)-[r:${name}]->(m) SET r += {row} return count(r)", {batchSize:${config.import.batch_size}, parallel:false, params: {sql:sql, url:url}}) yield batches return batches;\n`;
   return cypher;
@@ -248,7 +271,7 @@ var relationship_query = function(view, limit, offset, update = false){
 var node_query = function(view, limit, offset, update = false){
   var name = upperCamelCase(view.name.replace(/^node_/, ''));
   var operation = update ? 'MERGE' : 'CREATE';
-  var jdbc_string = view.type === 'bq' ? bq_jdbc_string : pg_jdbc_string; 
+  var jdbc_string = view.type === 'bq' ? bqJdbcFromHash(config.bigquery) : pgJdbcFromHash(config.postgres); 
   var qualified_table = view.type === 'bq' ? `\`${config.db.schema}.${view.name}\`` : `${config.db.schema}.${view.name}`;
   var cypher = `WITH "SELECT * FROM ${qualified_table} LIMIT ${limit} OFFSET ${offset}" as sql, "${jdbc_string}" as url call apoc.periodic.iterate("CALL apoc.load.jdbc({url},{sql}) YIELD row RETURN row", "${operation} (p:${name} {id: {row}.${view.attributes[0]}}) SET p += {row}", {batchSize:${config.import.batch_size}, parallel:${config.import.parallel}, params: {sql:sql, url:url}}) yield batches return batches;\n`
   return cypher;

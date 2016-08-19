@@ -2,6 +2,7 @@ postgres:
   host: 127.0.0.1
   port: 5432
   user: postgres
+  password: 
   database: my_pg_db
   idleTimeoutMillis: 1000
 bigquery:
@@ -11,8 +12,7 @@ bigquery:
   OAuthServiceAcctEmail: email_from@token.iam.gserviceaccount.com
   OAuthType: 0
   Timeout: 60
-google:
-  project_id: my_project
+  ProjectId: yourproject
 db:
   schema: graph_import
   node_prefix: node_
