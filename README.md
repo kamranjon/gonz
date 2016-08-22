@@ -9,7 +9,7 @@
 
 ### Usage: ###
 
-*Install the dependancies with -g option:*
+*Install the dependancies and then link them:*
 ```bash
 npm install
 npm link
