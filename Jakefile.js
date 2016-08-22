@@ -62,7 +62,6 @@ task('default', function(){
 })
 
 var task_queries = new Map([
-  ['all', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and (c.relname LIKE '${config.db.node_prefix}%' OR c.relname LIKE '${config.db.rel_prefix}%') GROUP BY c.relname ORDER BY c.relname;`],  
   ['index', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' GROUP BY c.relname ORDER BY c.relname;`],
   ['nodes', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' GROUP BY c.relname ORDER BY c.relname;`],
   ['rels', `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.rel_prefix}%' GROUP BY c.relname ORDER BY c.relname;`]
@@ -121,6 +120,11 @@ task_queries.forEach(function(query, task_name){
 });
 
 namespace('bq', function(){
+  task('all', function(){
+    jake.Task['bq:index'].invoke();
+    jake.Task['bq:nodes'].invoke();
+    jake.Task['bq:rels'].invoke();
+  });
   task('node', function(node_name){
     let run = process.env.import;
     node_file  = `./graph_import_${current_timestamp}_bq_node_${_.snakeCase(node_name)}.cql`;
@@ -139,6 +143,11 @@ namespace('bq', function(){
 });
 
 namespace('pg', function(){
+  task('all', function(){
+    jake.Task['pg:index'].invoke();
+    jake.Task['pg:nodes'].invoke();
+    jake.Task['pg:rels'].invoke();
+  });
   task('node', function(node_name){
     node_file  = `./graph_import_${current_timestamp}_pg_node_${_.snakeCase(node_name)}.cql`;
     let run = process.env.import;
@@ -190,7 +199,7 @@ var append_results_to_file = function(result, file, run = false){
         Promise.map(statements, function(statement){
           return fs.appendFileAsync(file, statement);
         });
-      }).then(function(){
+      }).finally(function(){
         if(run){
           jake.exec([`cat ${file} | ${config.neo4j.path}/bin/neo4j-shell`], {printStdout: true}, function(){
             console.log(`Finished Importing "${file}"`);
