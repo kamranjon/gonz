@@ -11,7 +11,8 @@
 
 *Install the dependancies with -g option:*
 ```bash
-npm install -g
+npm install
+npm link
 ```
 
 *Modify config.yml to conform to your local development environment:*
