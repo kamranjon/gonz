@@ -191,23 +191,23 @@ var structureBqView = function(view, metadata = []){
 
 var append_results_to_file = function(result, file, run = false){
   result.rows.forEach(function(view){
-      lines.push(cypher_create_query(view));
-    });
+    lines.push(cypher_create_query(view));
+  });
 
-    Promise.all(lines).then(function (result) {
-      Promise.map(result, function(statements){
-        Promise.map(statements, function(statement){
-          return fs.appendFileAsync(file, statement);
-        });
-      }).finally(function(){
-        if(run){
-          jake.exec([`cat ${file} | ${config.neo4j.path}/bin/neo4j-shell`], {printStdout: true}, function(){
-            console.log(`Finished Importing "${file}"`);
-          });
-        } else {
-          console.log('finished!');
-        }
-      })
+  Promise.all(lines).then(function (result) {
+    Promise.map(result, function(statements){
+      Promise.map(statements, function(statement){
+        return fs.appendFileAsync(file, statement);
+      });
+    });
+  }).finally(function(){
+    if(run){
+      jake.exec([`cat ${file} | ${config.neo4j.path}/bin/neo4j-shell`], {printStdout: true}, function(){
+        console.log(`Finished Importing "${file}"`);
+      });
+    } else {
+      console.log('finished!');
+    }
   });
 }
 
