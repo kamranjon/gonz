@@ -179,6 +179,12 @@ namespace('pg', function(){
 })
 
 
+namespace('neo', function(){
+  task('import', function(){
+
+  })
+})
+
 var upperCamelCase = function(string){
   return _.upperFirst(_.camelCase(string));
 }
@@ -273,7 +279,7 @@ var relationship_query = function(view, limit, offset, update = false){
   var operation = update ? 'MERGE' : 'CREATE';
   var jdbc_string = view.type === 'bq' ? bqJdbcFromHash(config.bigquery) : pgJdbcFromHash(config.postgres); 
   var qualified_table = view.type === 'bq' ? `\`${config.db.schema}.${view.name}\`` : `${config.db.schema}.${view.name}`;
-  var cypher = `WITH "SELECT * FROM ${qualified_table} LIMIT ${limit} OFFSET ${offset}" as sql, "${jdbc_string}" as url CALL apoc.periodic.iterate("CALL apoc.load.jdbc({url},{sql}) YIELD row RETURN row", "MATCH (n:${from} {id: {row}.${view.attributes[0]}}), (m:${to} {id: {row}.${view.attributes[1]}}) ${operation} (n)-[r:${name}]->(m) SET r += {row} return count(r)", {batchSize:${config.import.batch_size}, parallel:false, params: {sql:sql, url:url}}) yield batches return batches;\n`;
+  var cypher = `WITH "SELECT * FROM ${qualified_table} LIMIT ${limit} OFFSET ${offset} ORDER BY ${view.attributes[0]}" as sql, "${jdbc_string}" as url CALL apoc.periodic.iterate("CALL apoc.load.jdbc({url},{sql}) YIELD row RETURN row", "MATCH (n:${from} {id: {row}.${view.attributes[0]}}), (m:${to} {id: {row}.${view.attributes[1]}}) ${operation} (n)-[r:${name}]->(m) SET r += {row} return count(r)", {batchSize:${config.import.batch_size}, parallel:false, params: {sql:sql, url:url}}) yield batches return batches;\n`;
   return cypher;
 };
 
@@ -282,7 +288,7 @@ var node_query = function(view, limit, offset, update = false){
   var operation = update ? 'MERGE' : 'CREATE';
   var jdbc_string = view.type === 'bq' ? bqJdbcFromHash(config.bigquery) : pgJdbcFromHash(config.postgres); 
   var qualified_table = view.type === 'bq' ? `\`${config.db.schema}.${view.name}\`` : `${config.db.schema}.${view.name}`;
-  var cypher = `WITH "SELECT * FROM ${qualified_table} LIMIT ${limit} OFFSET ${offset}" as sql, "${jdbc_string}" as url call apoc.periodic.iterate("CALL apoc.load.jdbc({url},{sql}) YIELD row RETURN row", "${operation} (p:${name} {id: {row}.${view.attributes[0]}}) SET p += {row}", {batchSize:${config.import.batch_size}, parallel:${config.import.parallel}, params: {sql:sql, url:url}}) yield batches return batches;\n`
+  var cypher = `WITH "SELECT * FROM ${qualified_table} LIMIT ${limit} OFFSET ${offset} ORDER BY id" as sql, "${jdbc_string}" as url call apoc.periodic.iterate("CALL apoc.load.jdbc({url},{sql}) YIELD row RETURN row", "${operation} (p:${name} {id: {row}.${view.attributes[0]}}) SET p += {row}", {batchSize:${config.import.batch_size}, parallel:${config.import.parallel}, params: {sql:sql, url:url}}) yield batches return batches;\n`
   return cypher;
 };
 
