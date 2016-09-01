@@ -66,34 +66,34 @@ SELECT
 FROM education; 
 ```
 
-*Create cypher statements for and import all data from the views defined in the schema you defined:*
+*Create cypher statements for all data from the views defined in the schema you defined:*
 
 ```bash
-gonz pg:all import=true
+gonz pg:all
 ```
 
-*Create cypher statements for all rels in the BQ schema without importing:*
+*Create cypher merge statements for all rels in the BQ schema:*
 
 ```bash
-gonz bq:rels
+gonz bq:rels update=true
 ```
 
-*Create statements for and import a specific Node:*
+*Create statements for a specific Node:*
 
 ```bash
-gonz pg:node[Provider] import=true
+gonz pg:node[Provider]
 ```
 
-*Create statements for and import a specific Relationship:*
+*Create statements merge for a specific Relationship:*
 
 ```bash
-gonz pg:rel[HAS_OWNERSHIP_IN] import=true
+gonz pg:rel[HAS_OWNERSHIP_IN] update=true
 ```
 
 *Create all indexes for the UID on all nodes in your BQ schema*
 
 ```bash
-gonz bq:index import=true
+gonz bq:index
 ```
 
 ### Conventions: ###

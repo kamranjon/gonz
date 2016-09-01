@@ -71,11 +71,10 @@ task_queries.forEach(function(query, task_name){
   namespace('pg', function(){
     var file = `./graph_import_${current_timestamp}_pg_${task_name}.cql`;
     task(task_name, function(){
-      let run = process.env.import;
       pg.connectAsync(config.postgres).then(function(client) {
         // grab all of the node and relationship views
         client.queryAsync(query).then(function(result){
-          task_name === 'index' ? index_to_file(result, file, run) : append_results_to_file(result, file, run);
+          task_name === 'index' ? index_to_file(result, file) : append_results_to_file(result, file);
         })
         .finally(function(){
           client.release();
@@ -87,31 +86,30 @@ task_queries.forEach(function(query, task_name){
     var file = `./graph_import_${current_timestamp}_bq_${task_name}.cql`;
     task(task_name, function(){
       var dataset = Promise.promisifyAll(bigquery.dataset(config.db.schema));
-      let run = process.env.import;
       switch(task_name){
         case 'all':
           dataset.getTablesAsync().then(function(tables, nextQuery, apiResponse) {
-            append_results_to_file({rows:tables}, file, run);
+            append_results_to_file({rows:tables}, file);
           });
           break;
         case 'index': 
           dataset.getTablesAsync().then(function(tables, nextQuery, apiResponse) {
             tables = _.reduce(tables, function(sum, n){if(node_regex.test(n.metadata.tableReference.tableId)) sum.push(structureBgView(n)); return sum;}, [])
-            index_to_file({rows:tables}, file, run);
+            index_to_file({rows:tables}, file);
           });
           break
         case 'nodes':
           dataset.getTablesAsync().then(function(tables, nextQuery, apiResponse) {
             tables = _.reduce(tables, function(sum, n){if(node_regex.test(n.metadata.tableReference.tableId)) sum.push(n); return sum;}, [])
             if(tables.length === 0) return;
-            append_results_to_file({rows:tables}, file, run);
+            append_results_to_file({rows:tables}, file);
           });
           break;
         case 'rels':
           dataset.getTablesAsync().then(function(tables, nextQuery, apiResponse) {
             tables = _.reduce(tables, function(sum, n){if(rel_regex.test(n.metadata.tableReference.tableId)) sum.push(n); return sum;}, [])
             if(tables.length === 0) return;
-            append_results_to_file({rows:tables}, file, run);
+            append_results_to_file({rows:tables}, file);
           });
           break;        
       }
@@ -126,19 +124,17 @@ namespace('bq', function(){
     jake.Task['bq:rels'].invoke();
   });
   task('node', function(node_name){
-    let run = process.env.import;
     node_file  = `./graph_import_${current_timestamp}_bq_node_${_.snakeCase(node_name)}.cql`;
     var dataset = Promise.promisifyAll(bigquery.dataset(config.db.schema));
     var node_table = dataset.table(`${config.db.node_prefix + _.snakeCase(node_name)}`);
-    append_results_to_file({rows:[node_table]}, node_file, run);
+    append_results_to_file({rows:[node_table]}, node_file);
   });
 
   task('rel', function(rel_name){
-    let run = process.env.import;
     rel_file  = `./graph_import_${current_timestamp}_bq_rel_${_.snakeCase(rel_name)}.cql`;
     var dataset = Promise.promisifyAll(bigquery.dataset(config.db.schema));
     var rel_table = dataset.table(`${config.db.rel_prefix + _.snakeCase(rel_name)}`);
-    append_results_to_file({rows:[rel_table]}, rel_file, run);
+    append_results_to_file({rows:[rel_table]}, rel_file);
   });
 });
 
@@ -150,12 +146,11 @@ namespace('pg', function(){
   });
   task('node', function(node_name){
     node_file  = `./graph_import_${current_timestamp}_pg_node_${_.snakeCase(node_name)}.cql`;
-    let run = process.env.import;
     pg.connectAsync(config.postgres).then(function(client){
       // grab all of the node and relationship views
       let query = `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.node_prefix}%' AND c.relname = '${config.db.node_prefix + _.snakeCase(node_name)}' GROUP BY c.relname ORDER BY c.relname;`;
       client.queryAsync(query).then(function(result){
-        append_results_to_file(result, node_file, run);
+        append_results_to_file(result, node_file);
       }).finally(function(){
         client.release();
       });
@@ -166,11 +161,10 @@ namespace('pg', function(){
     rel_file  = `./graph_import_${current_timestamp}_pg_rel_${_.snakeCase(rel_name)}.cql`;
     pg.connectAsync(config.postgres).then(function(client){
       // grab all of the node and relationship views
-      let run = process.env.import;
       let update = process.env.update;
       let query = `SELECT c.relname as name, json_agg(attr.attname) as attributes FROM pg_catalog.pg_class c JOIN pg_namespace n ON n.oid = c.relnamespace JOIN pg_attribute attr ON attr.attrelid = ('${config.db.schema}.' || c.relname)::regclass AND    attr.attnum > 0 AND    NOT attr.attisdropped WHERE c.relkind IN ('m', 'v') AND n.nspname = '${config.db.schema}' and c.relname LIKE '${config.db.rel_prefix}%' AND c.relname = '${config.db.rel_prefix + _.snakeCase(rel_name)}' GROUP BY c.relname ORDER BY c.relname;`;
       client.queryAsync(query).then(function(result){
-        append_results_to_file(result, rel_file, run);
+        append_results_to_file(result, rel_file);
       }).finally(function(){
         client.release();
       });
@@ -195,7 +189,7 @@ var structureBqView = function(view, metadata = []){
   return {name:bq_table_name, attributes:bq_attributes, type:'bq', table:view};
 }
 
-var append_results_to_file = function(result, file, run = false){
+var append_results_to_file = function(result, file){
   result.rows.forEach(function(view){
     lines.push(cypher_create_query(view));
   });
@@ -207,13 +201,7 @@ var append_results_to_file = function(result, file, run = false){
       });
     });
   }).finally(function(){
-    if(run){
-      jake.exec([`cat ${file} | ${config.neo4j.path}/bin/neo4j-shell`], {printStdout: true}, function(){
-        console.log(`Finished Importing "${file}"`);
-      });
-    } else {
-      console.log('finished!');
-    }
+    console.log('finished!');
   });
 }
 
@@ -272,7 +260,8 @@ var get_count = function(view, callback){
   }
 }
 
-var relationship_query = function(view, limit, offset, update = false){
+var relationship_query = function(view, limit, offset){
+  var update = process.env.update || false;
   var name = _.toUpper(view.name.replace(/^relationship_/, ''));
   var from = upperCamelCase(view.attributes[0].replace(/_id.*/, ''));
   var to = upperCamelCase(view.attributes[1].replace(/_id.*/, ''));
@@ -284,6 +273,7 @@ var relationship_query = function(view, limit, offset, update = false){
 };
 
 var node_query = function(view, limit, offset, update = false){
+  var update = process.env.update || false;
   var name = upperCamelCase(view.name.replace(/^node_/, ''));
   var operation = update ? 'MERGE' : 'CREATE';
   var jdbc_string = view.type === 'bq' ? bqJdbcFromHash(config.bigquery) : pgJdbcFromHash(config.postgres); 
@@ -298,19 +288,13 @@ var index_query = function(view){
   return index_create;
 };
 
-var index_to_file = function(result, file, run = false){
+var index_to_file = function(result, file){
   indexes = [];
   result.rows.forEach(function(view){
     indexes.push(fs.appendFileAsync(file, index_query(view)));
   })
   Promise.all(indexes).then(function(result){
-    if(run){
-      jake.exec([`cat ${file} | ${config.neo4j.path}/bin/neo4j-shell`], {printStdout: true}, function(){
-        console.log(`Finished Importing "${file}"`);
-      });
-    } else {
-      console.log('finished!');
-    }
+    console.log('finished!');
   });
 }
 
