@@ -69,10 +69,10 @@ var task_queries = new Map([
 task_queries.forEach(function(query, task_name){
   namespace('pg', function(){
     task(task_name, function(){
+      var file = `./graph_import_${current_timestamp}_pg_${task_name}.cql`;
       pg.connectAsync(config.postgres).then(function(client) {
         // grab all of the node and relationship views
         client.queryAsync(query).then(function(result){
-          let file = `./graph_import_${current_timestamp}_pg_${task_name}.cql`;
           task_name === 'index' ? index_to_file(result, file) : append_results_to_file(result, file);
         })
         .finally(function(){
@@ -137,19 +137,13 @@ namespace('bq', function(){
   });
 });
 
-var taskSync = function(task, callback){
-  jake.Task[task].invoke();
-  callback();
-}
-
 namespace('pg', function(){
   task('all', function(){
-    taskSync('pg:index', function(){
-      taskSync('pg:nodes', function(){
-        taskSync('pg:rels', function(){});
-      });
-    });
+    jake.Task['pg:index'].invoke();
+    jake.Task['pg:nodes'].invoke();
+    jake.Task['pg:rels'].invoke();
   });
+
   task('node', function(node_name){
     node_file  = `./graph_import_${current_timestamp}_pg_node_${_.snakeCase(node_name)}.cql`;
     pg.connectAsync(config.postgres).then(function(client){
