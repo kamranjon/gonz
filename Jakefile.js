@@ -24,7 +24,6 @@ var bigquery = gcloud.bigquery({
   keyFilename: config.bigquery.OAuthPvtKeyPath
 });
 
-var lines = [];
 var page = config.db.page;
 var current_timestamp = Date.now();
 
@@ -69,11 +68,11 @@ var task_queries = new Map([
 
 task_queries.forEach(function(query, task_name){
   namespace('pg', function(){
-    var file = `./graph_import_${current_timestamp}_pg_${task_name}.cql`;
     task(task_name, function(){
       pg.connectAsync(config.postgres).then(function(client) {
         // grab all of the node and relationship views
         client.queryAsync(query).then(function(result){
+          let file = `./graph_import_${current_timestamp}_pg_${task_name}.cql`;
           task_name === 'index' ? index_to_file(result, file) : append_results_to_file(result, file);
         })
         .finally(function(){
@@ -138,11 +137,18 @@ namespace('bq', function(){
   });
 });
 
+var taskSync = function(task, callback){
+  jake.Task[task].invoke();
+  callback();
+}
+
 namespace('pg', function(){
   task('all', function(){
-    jake.Task['pg:index'].invoke();
-    jake.Task['pg:nodes'].invoke();
-    jake.Task['pg:rels'].invoke();
+    taskSync('pg:index', function(){
+      taskSync('pg:nodes', function(){
+        taskSync('pg:rels', function(){});
+      });
+    });
   });
   task('node', function(node_name){
     node_file  = `./graph_import_${current_timestamp}_pg_node_${_.snakeCase(node_name)}.cql`;
@@ -190,6 +196,7 @@ var structureBqView = function(view, metadata = []){
 }
 
 var append_results_to_file = function(result, file){
+  var lines = [];
   result.rows.forEach(function(view){
     lines.push(cypher_create_query(view));
   });
